@@ -402,7 +402,10 @@
 
 <header>
   <div class="logo">Eco<span>Talk</span></div>
-  <div class="stats-pill">総単語: <strong id="total-count">0</strong></div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+    <div class="stats-pill">総単語: <strong id="total-count">0</strong></div>
+    <div id="sync-status" style="font-size:11px;color:var(--muted);"></div>
+  </div>
 </header>
 
 <div class="tabs">
@@ -531,14 +534,39 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== DATA STORE =====
-function loadData() {
-  try { return JSON.parse(localStorage.getItem('ecotalk_vocab') || '[]'); }
-  catch { return []; }
+// ===== DATA STORE (Cloud Sync) =====
+const STORAGE_KEY = 'ecotalk-vocab-data';
+let cachedData = null;
+
+function showSyncStatus(msg, isError) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
 }
-function saveData(data) {
-  localStorage.setItem('ecotalk_vocab', JSON.stringify(data));
-  updateTotalCount();
+
+async function loadData() {
+  if (cachedData !== null) return cachedData;
+  try {
+    const result = await window.storage.get(STORAGE_KEY);
+    cachedData = result ? JSON.parse(result.value) : [];
+  } catch {
+    cachedData = [];
+  }
+  return cachedData;
+}
+
+async function saveData(data) {
+  cachedData = data;
+  await updateTotalCount();
+  showSyncStatus('☁️ 同期中...');
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+    showSyncStatus('✓ 同期済み');
+    setTimeout(() => showSyncStatus(''), 2000);
+  } catch {
+    showSyncStatus('⚠️ 同期失敗', true);
+  }
 }
 
 let currentFilter = 'all';
@@ -547,31 +575,30 @@ let flashCards = [];
 let isFlipped = false;
 
 // ===== TABS =====
-function showTab(name) {
+async function showTab(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   event.target.classList.add('active');
-  if (name === 'flash') renderFlash();
-  if (name === 'list') renderList();
-  if (name === 'reminder') renderStats();
+  if (name === 'flash') await renderFlash();
+  if (name === 'list') await renderList();
+  if (name === 'reminder') await renderStats();
 }
 
 // ===== FLASH CARDS =====
-function getDueCards() {
-  const data = loadData();
-  const today = new Date().toDateString();
+async function getDueCards() {
+  const data = await loadData();
   return data.filter(v => {
     if (!v.nextReview) return true;
     return new Date(v.nextReview) <= new Date();
   });
 }
 
-function renderFlash() {
-  flashCards = getDueCards();
+async function renderFlash() {
+  flashCards = await getDueCards();
   const content = document.getElementById('flash-content');
   if (flashCards.length === 0) {
-    const total = loadData().length;
+    const total = (await loadData()).length;
     content.innerHTML = total === 0 ?
       `<div class="empty"><div class="empty-icon">🌱</div><h3>まだ単語がありません</h3><p>英会話セッションの後に「追加」タブから新しい表現を登録しましょう。</p></div>` :
       `<div class="empty"><div class="empty-icon">🎉</div><h3>今日の復習は完了！</h3><p>登録済み: ${total}語<br>次の復習は明日以降です。</p></div>`;
@@ -619,8 +646,8 @@ function flipCard() {
   document.getElementById('actions').style.display = isFlipped ? 'flex' : 'none';
 }
 
-function rate(rating) {
-  const data = loadData();
+async function rate(rating) {
+  const data = await loadData();
   const card = flashCards[flashIndex];
   const idx = data.findIndex(v => v.id === card.id);
   if (idx >= 0) {
@@ -630,28 +657,28 @@ function rate(rating) {
     data[idx].nextReview = next.toISOString();
     data[idx].status = rating === 'again' ? 'learning' : rating === 'easy' ? 'known' : 'learning';
     data[idx].reviewCount = (data[idx].reviewCount || 0) + 1;
-    saveData(data);
+    await saveData(data);
   }
   flashIndex++;
   isFlipped = false;
   if (flashIndex >= flashCards.length) {
     showToast('🎉 今日の復習完了！');
-    renderFlash();
+    await renderFlash();
   } else {
     renderCard();
   }
 }
 
 // ===== LIST =====
-function filterList(f, el) {
+async function filterList(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  renderList();
+  await renderList();
 }
 
-function renderList() {
-  let data = loadData();
+async function renderList() {
+  let data = await loadData();
   if (currentFilter !== 'all') data = data.filter(v => (v.status || 'new') === currentFilter);
   const el = document.getElementById('vocab-list');
   if (data.length === 0) {
@@ -678,11 +705,11 @@ function renderList() {
 }
 
 // ===== ADD =====
-function addVocab() {
+async function addVocab() {
   const word = document.getElementById('inp-word').value.trim();
   const ja = document.getElementById('inp-ja').value.trim();
   if (!word || !ja) { showToast('⚠️ 英語と日本語訳は必須です'); return; }
-  const data = loadData();
+  const data = await loadData();
   data.unshift({
     id: Date.now().toString(),
     word,
@@ -695,7 +722,7 @@ function addVocab() {
     nextReview: null,
     reviewCount: 0
   });
-  saveData(data);
+  await saveData(data);
   document.getElementById('inp-word').value = '';
   document.getElementById('inp-ja').value = '';
   document.getElementById('inp-example').value = '';
@@ -703,20 +730,21 @@ function addVocab() {
   showToast('✅ 保存しました！');
 }
 
-function deleteVocab(id) {
+async function deleteVocab(id) {
   if (!confirm('この単語を削除しますか？')) return;
-  const data = loadData().filter(v => v.id !== id);
-  saveData(data);
-  renderList();
+  const data = (await loadData()).filter(v => v.id !== id);
+  cachedData = null;
+  await saveData(data);
+  await renderList();
 }
 
 // ===== STATS =====
-function renderStats() {
-  const data = loadData();
+async function renderStats() {
+  const data = await loadData();
   const known = data.filter(v => v.status === 'known').length;
   const learning = data.filter(v => v.status === 'learning').length;
   const newW = data.filter(v => !v.status || v.status === 'new').length;
-  const due = getDueCards().length;
+  const due = (await getDueCards()).length;
   document.getElementById('stats-detail').innerHTML = `
     <div>📚 総単語数: <strong style="color:var(--text)">${data.length}</strong></div>
     <div>🆕 新規: <strong style="color:var(--accent)">${newW}</strong></div>
@@ -759,8 +787,8 @@ function scheduleReminder() {
   tomorrow9am.setDate(tomorrow9am.getDate() + 1);
   tomorrow9am.setHours(9, 0, 0, 0);
   const ms = tomorrow9am - now;
-  setTimeout(() => {
-    const due = getDueCards().length;
+  setTimeout(async () => {
+    const due = (await getDueCards()).length;
     if (due > 0 && Notification.permission === 'granted') {
       new Notification('EcoTalk 復習リマインダー', {
         body: `今日の復習: ${due}枚のカードが待っています！`,
@@ -771,16 +799,19 @@ function scheduleReminder() {
 }
 
 // ===== UTILS =====
-function updateTotalCount() {
-  document.getElementById('total-count').textContent = loadData().length;
+async function updateTotalCount() {
+  const data = await loadData();
+  document.getElementById('total-count').textContent = data.length;
 }
 
-function clearAll() {
+async function clearAll() {
   if (!confirm('すべての単語を削除しますか？この操作は取り消せません。')) return;
-  localStorage.removeItem('ecotalk_vocab');
-  updateTotalCount();
+  cachedData = null;
+  await window.storage.delete(STORAGE_KEY);
+  cachedData = [];
+  await updateTotalCount();
   showToast('🗑️ すべて削除しました');
-  renderFlash();
+  await renderFlash();
 }
 
 function showToast(msg) {
@@ -843,11 +874,12 @@ function parseImport() {
   btnConfirm.style.display = 'block';
 }
 
-function confirmImport() {
+async function confirmImport() {
   if (importPreviewData.length === 0) return;
-  const data = loadData();
+  const data = await loadData();
   importPreviewData.forEach(v => data.unshift(v));
-  saveData(data);
+  cachedData = null;
+  await saveData(data);
   document.getElementById('inp-import').value = '';
   document.getElementById('import-preview').innerHTML = '';
   document.getElementById('btn-confirm-import').style.display = 'none';
@@ -857,8 +889,12 @@ function confirmImport() {
 }
 
 // ===== INIT =====
-updateTotalCount();
-renderFlash();
+async function init() {
+  showSyncStatus('☁️ 読み込み中...');
+  await updateTotalCount();
+  await renderFlash();
+}
+init();
 </script>
 </body>
 </html>
