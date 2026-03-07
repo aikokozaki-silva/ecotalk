@@ -409,7 +409,8 @@
   <button class="tab active" onclick="showTab('flash')">🃏 復習</button>
   <button class="tab" onclick="showTab('list')">📚 一覧</button>
   <button class="tab" onclick="showTab('add')">➕ 追加</button>
-  <button class="tab" onclick="showTab('reminder')">🔔 設定</button>
+  <button class="tab" onclick="showTab('import')">📥 取込</button>
+  <button class="tab" onclick="showTab('reminder')">⚙️ 設定</button>
 </div>
 
 <!-- FLASH CARD SECTION -->
@@ -462,6 +463,33 @@
   </div>
 
   <button class="btn-primary" onclick="addVocab()">保存する</button>
+</div>
+
+<!-- IMPORT SECTION -->
+<div class="section" id="tab-import">
+  <div class="section-title">Claudeから取込</div>
+  <div class="section-sub">英会話セッション後にClaudeが出力したリストを貼り付けてください</div>
+
+  <div class="reminder-card" style="margin-bottom:16px;">
+    <h3>📋 使い方</h3>
+    <p>Claudeとの英会話セッションが終わったら「vocabulary list」と送ってください。Claudeが以下の形式でリストを出力します。それをそのままここに貼り付けるだけで一括登録できます。</p>
+    <div style="background:#0f1a14;border-radius:10px;padding:12px;font-size:12px;color:var(--accent2);font-family:monospace;line-height:1.8;">
+      VOCAB_START<br>
+      carbon footprint | 炭素排出量 | phrase | We must reduce our carbon footprint. | SDG13<br>
+      break new ground | 新境地を開く | idiom | The team broke new ground in renewable energy. | SDG7<br>
+      VOCAB_END
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Claudeの出力をここに貼り付け</label>
+    <textarea id="inp-import" style="min-height:180px;font-size:13px;font-family:monospace;" placeholder="VOCAB_START&#10;word | 日本語訳 | type | example | session&#10;VOCAB_END"></textarea>
+  </div>
+
+  <div id="import-preview" style="margin-bottom:12px;"></div>
+
+  <button class="btn-primary" onclick="parseImport()">プレビューを確認</button>
+  <button class="btn-primary" id="btn-confirm-import" style="display:none;background:#1a2e1f;color:var(--accent);border:1px solid var(--accent);" onclick="confirmImport()">✅ まとめて登録する</button>
 </div>
 
 <!-- REMINDER SECTION -->
@@ -760,6 +788,72 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== IMPORT =====
+let importPreviewData = [];
+
+function parseImport() {
+  const raw = document.getElementById('inp-import').value.trim();
+  const preview = document.getElementById('import-preview');
+  const btnConfirm = document.getElementById('btn-confirm-import');
+  importPreviewData = [];
+
+  if (!raw.includes('VOCAB_START') || !raw.includes('VOCAB_END')) {
+    preview.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:10px;">⚠️ VOCAB_START と VOCAB_END が見つかりません。Claudeの出力をそのまま貼り付けてください。</div>`;
+    btnConfirm.style.display = 'none';
+    return;
+  }
+
+  const inner = raw.split('VOCAB_START')[1].split('VOCAB_END')[0].trim();
+  const lines = inner.split('\n').map(l => l.trim()).filter(l => l && l.includes('|'));
+
+  if (lines.length === 0) {
+    preview.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:10px;">⚠️ 有効な行が見つかりませんでした。</div>`;
+    btnConfirm.style.display = 'none';
+    return;
+  }
+
+  importPreviewData = lines.map(line => {
+    const parts = line.split('|').map(p => p.trim());
+    return {
+      id: Date.now().toString() + Math.random().toString(36).slice(2),
+      word: parts[0] || '',
+      ja: parts[1] || '',
+      type: parts[2] || 'phrase',
+      example: parts[3] || '',
+      session: parts[4] || '',
+      status: 'new',
+      created: new Date().toISOString(),
+      nextReview: null,
+      reviewCount: 0
+    };
+  }).filter(v => v.word && v.ja);
+
+  preview.innerHTML = `
+    <div style="font-size:13px;color:var(--accent);margin-bottom:10px;">✓ ${importPreviewData.length}件を検出しました</div>
+    ${importPreviewData.map(v => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="font-weight:500;">${v.word}</div>
+        <div style="font-size:12px;color:var(--muted);">${v.ja}${v.session ? ' · ' + v.session : ''}</div>
+        ${v.example ? `<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:4px;">${v.example}</div>` : ''}
+      </div>
+    `).join('')}
+  `;
+  btnConfirm.style.display = 'block';
+}
+
+function confirmImport() {
+  if (importPreviewData.length === 0) return;
+  const data = loadData();
+  importPreviewData.forEach(v => data.unshift(v));
+  saveData(data);
+  document.getElementById('inp-import').value = '';
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('btn-confirm-import').style.display = 'none';
+  importPreviewData = [];
+  showToast(`🎉 ${importPreviewData.length || ''}件を登録しました！`);
+  showToast('✅ 登録完了！一覧タブで確認できます');
 }
 
 // ===== INIT =====
