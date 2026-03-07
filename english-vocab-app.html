@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoTalk Vocab</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1a14;
+    --surface: #162019;
+    --card: #1c2b20;
+    --accent: #4eca7a;
+    --accent2: #a8e6c0;
+    --text: #e8f0ea;
+    --muted: #6b8a72;
+    --border: #2a3d2e;
+    --danger: #e05c5c;
+    --warn: #e0b84a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* Header */
+  header {
+    padding: 20px 20px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent2); }
+  .stats-pill {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .stats-pill strong { color: var(--accent); }
+
+  /* Nav tabs */
+  .tabs {
+    display: flex;
+    margin: 20px 20px 0;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: #0f1a14;
+  }
+
+  /* Sections */
+  .section { display: none; padding: 20px; }
+  .section.active { display: block; }
+
+  /* Flash card */
+  .flashcard-wrap {
+    perspective: 1000px;
+    margin: 10px 0 24px;
+    height: 220px;
+  }
+  .flashcard {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(.4,0,.2,1);
+    cursor: pointer;
+  }
+  .flashcard.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute;
+    inset: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    backface-visibility: hidden;
+  }
+  .card-face.back { transform: rotateY(180deg); background: #1a2e1f; }
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .card-word {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .card-type {
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(78,202,122,0.12);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .card-translation {
+    font-size: 22px;
+    color: var(--accent2);
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .card-example {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .tap-hint {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    background: var(--border);
+    border-radius: 4px;
+    height: 4px;
+    margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  .progress-text {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* Action buttons */
+  .card-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-again { background: rgba(224,92,92,0.15); color: var(--danger); border: 1px solid rgba(224,92,92,0.3); }
+  .btn-good { background: rgba(78,202,122,0.15); color: var(--accent); border: 1px solid rgba(78,202,122,0.3); }
+  .btn-easy { background: rgba(168,230,192,0.15); color: var(--accent2); border: 1px solid rgba(168,230,192,0.3); }
+  .btn-primary {
+    background: var(--accent);
+    color: #0f1a14;
+    font-weight: 600;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+  }
+  .btn-primary:active { transform: scale(0.98); background: var(--accent2); }
+
+  /* List view */
+  .vocab-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .vocab-score {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .score-new { background: rgba(78,202,122,0.15); color: var(--accent); }
+  .score-learning { background: rgba(224,184,74,0.15); color: var(--warn); }
+  .score-known { background: rgba(168,230,192,0.15); color: var(--accent2); }
+  .vocab-content { flex: 1; }
+  .vocab-word { font-weight: 500; font-size: 16px; margin-bottom: 3px; }
+  .vocab-ja { color: var(--muted); font-size: 13px; margin-bottom: 5px; }
+  .vocab-ex { color: var(--muted); font-size: 12px; font-style: italic; line-height: 1.5; }
+  .vocab-date { font-size: 11px; color: var(--border); margin-top: 6px; }
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .delete-btn:hover { color: var(--danger); }
+
+  /* Add form */
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  input, textarea, select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 72px; }
+  select option { background: var(--card); }
+
+  /* Session info box */
+  .session-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .session-date {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .session-theme { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .session-count { font-size: 13px; color: var(--muted); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+  .empty p { font-size: 14px; line-height: 1.6; }
+
+  /* Reminder section */
+  .reminder-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .reminder-card h3 { font-size: 15px; margin-bottom: 6px; }
+  .reminder-card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+  .reminder-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .toggle {
+    width: 44px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: none;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: left 0.3s;
+  }
+  .toggle.on::after { left: 23px; }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .section-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent);
+    color: #0f1a14;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .due-badge {
+    background: rgba(224,92,92,0.15);
+    color: var(--danger);
+    border: 1px solid rgba(224,92,92,0.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .filter-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .filter-btn.active { background: var(--accent); color: #0f1a14; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Eco<span>Talk</span></div>
+  <div class="stats-pill">総単語: <strong id="total-count">0</strong></div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('flash')">🃏 復習</button>
+  <button class="tab" onclick="showTab('list')">📚 一覧</button>
+  <button class="tab" onclick="showTab('add')">➕ 追加</button>
+  <button class="tab" onclick="showTab('reminder')">🔔 設定</button>
+</div>
+
+<!-- FLASH CARD SECTION -->
+<div class="section active" id="tab-flash">
+  <div id="flash-content"></div>
+</div>
+
+<!-- LIST SECTION -->
+<div class="section" id="tab-list">
+  <div class="section-title">語彙リスト</div>
+  <div class="section-sub">登録した単語・フレーズの一覧</div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="filterList('all', this)">すべて</button>
+    <button class="filter-btn" onclick="filterList('new', this)">🆕 新規</button>
+    <button class="filter-btn" onclick="filterList('learning', this)">📖 学習中</button>
+    <button class="filter-btn" onclick="filterList('known', this)">✅ 習得済み</button>
+  </div>
+  <div id="vocab-list"></div>
+</div>
+
+<!-- ADD SECTION -->
+<div class="section" id="tab-add">
+  <div class="section-title">単語を追加</div>
+  <div class="section-sub">英会話セッション後に新しい表現を記録しましょう</div>
+
+  <div class="form-group">
+    <label>英語表現 *</label>
+    <input type="text" id="inp-word" placeholder="e.g. carbon footprint">
+  </div>
+  <div class="form-group">
+    <label>日本語訳 *</label>
+    <input type="text" id="inp-ja" placeholder="e.g. 炭素排出量">
+  </div>
+  <div class="form-group">
+    <label>例文</label>
+    <textarea id="inp-example" placeholder="e.g. We need to reduce our carbon footprint to fight climate change."></textarea>
+  </div>
+  <div class="form-group">
+    <label>種類</label>
+    <select id="inp-type">
+      <option value="phrase">フレーズ</option>
+      <option value="idiom">イディオム</option>
+      <option value="word">単語</option>
+      <option value="expression">表現</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>セッションテーマ（任意）</label>
+    <input type="text" id="inp-session" placeholder="e.g. SDG13 Climate Action">
+  </div>
+
+  <button class="btn-primary" onclick="addVocab()">保存する</button>
+</div>
+
+<!-- REMINDER SECTION -->
+<div class="section" id="tab-reminder">
+  <div class="section-title">学習設定</div>
+  <div class="section-sub">復習のリマインダーと学習ペースを設定</div>
+
+  <div class="reminder-card">
+    <h3>📅 毎日の復習リマインダー</h3>
+    <p>ブラウザの通知をオンにすると、毎朝復習のタイミングをお知らせします。スマホのホーム画面にこのページを追加しておくと便利です。</p>
+    <div class="reminder-toggle">
+      <button class="toggle" id="notif-toggle" onclick="toggleNotif()"></button>
+      <span id="notif-label">通知オフ</span>
+    </div>
+  </div>
+
+  <div class="reminder-card">
+    <h3>🧠 間隔反復について</h3>
+    <p>「もう一度」「良い」「簡単」の3段階で評価すると、次の復習タイミングが自動調整されます。忘れる直前に復習することで記憶に定着しやすくなります。</p>
+    <div style="display:flex; gap:8px; margin-top:4px;">
+      <span style="background:rgba(224,92,92,0.15);color:var(--danger);padding:4px 10px;border-radius:8px;font-size:12px;">もう一度 → 翌日</span>
+      <span style="background:rgba(224,184,74,0.15);color:var(--warn);padding:4px 10px;border-radius:8px;font-size:12px;">良い → 3日後</span>
+      <span style="background:rgba(168,230,192,0.15);color:var(--accent2);padding:4px 10px;border-radius:8px;font-size:12px;">簡単 → 7日後</span>
+    </div>
+  </div>
+
+  <div class="reminder-card">
+    <h3>📊 学習統計</h3>
+    <div id="stats-detail" style="font-size:14px; color:var(--muted); line-height:2;"></div>
+  </div>
+
+  <div class="reminder-card">
+    <h3>🗑️ データ管理</h3>
+    <p>すべての単語データを削除します。この操作は取り消せません。</p>
+    <button onclick="clearAll()" style="background:rgba(224,92,92,0.15);color:var(--danger);border:1px solid rgba(224,92,92,0.3);border-radius:10px;padding:10px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;">すべて削除する</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA STORE =====
+function loadData() {
+  try { return JSON.parse(localStorage.getItem('ecotalk_vocab') || '[]'); }
+  catch { return []; }
+}
+function saveData(data) {
+  localStorage.setItem('ecotalk_vocab', JSON.stringify(data));
+  updateTotalCount();
+}
+
+let currentFilter = 'all';
+let flashIndex = 0;
+let flashCards = [];
+let isFlipped = false;
+
+// ===== TABS =====
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'flash') renderFlash();
+  if (name === 'list') renderList();
+  if (name === 'reminder') renderStats();
+}
+
+// ===== FLASH CARDS =====
+function getDueCards() {
+  const data = loadData();
+  const today = new Date().toDateString();
+  return data.filter(v => {
+    if (!v.nextReview) return true;
+    return new Date(v.nextReview) <= new Date();
+  });
+}
+
+function renderFlash() {
+  flashCards = getDueCards();
+  const content = document.getElementById('flash-content');
+  if (flashCards.length === 0) {
+    const total = loadData().length;
+    content.innerHTML = total === 0 ?
+      `<div class="empty"><div class="empty-icon">🌱</div><h3>まだ単語がありません</h3><p>英会話セッションの後に「追加」タブから新しい表現を登録しましょう。</p></div>` :
+      `<div class="empty"><div class="empty-icon">🎉</div><h3>今日の復習は完了！</h3><p>登録済み: ${total}語<br>次の復習は明日以降です。</p></div>`;
+    return;
+  }
+  flashIndex = 0;
+  isFlipped = false;
+  renderCard();
+}
+
+function renderCard() {
+  const content = document.getElementById('flash-content');
+  const card = flashCards[flashIndex];
+  const pct = Math.round((flashIndex / flashCards.length) * 100);
+
+  content.innerHTML = `
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="progress-text">${flashIndex + 1} / ${flashCards.length} 枚</div>
+    <div class="tap-hint">カードをタップして訳を表示</div>
+    <div class="flashcard-wrap">
+      <div class="flashcard" id="fc" onclick="flipCard()">
+        <div class="card-face front">
+          <div class="card-label">English</div>
+          <div class="card-word">${card.word}</div>
+          <div class="card-type">${card.type}</div>
+        </div>
+        <div class="card-face back">
+          <div class="card-label">Japanese</div>
+          <div class="card-translation">${card.ja}</div>
+          ${card.example ? `<div class="card-example">${card.example}</div>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card-actions" id="actions" style="display:none">
+      <button class="btn btn-again" onclick="rate('again')">もう一度</button>
+      <button class="btn btn-good" onclick="rate('good')">良い</button>
+      <button class="btn btn-easy" onclick="rate('easy')">簡単</button>
+    </div>
+  `;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('fc').classList.toggle('flipped', isFlipped);
+  document.getElementById('actions').style.display = isFlipped ? 'flex' : 'none';
+}
+
+function rate(rating) {
+  const data = loadData();
+  const card = flashCards[flashIndex];
+  const idx = data.findIndex(v => v.id === card.id);
+  if (idx >= 0) {
+    const days = rating === 'again' ? 1 : rating === 'good' ? 3 : 7;
+    const next = new Date();
+    next.setDate(next.getDate() + days);
+    data[idx].nextReview = next.toISOString();
+    data[idx].status = rating === 'again' ? 'learning' : rating === 'easy' ? 'known' : 'learning';
+    data[idx].reviewCount = (data[idx].reviewCount || 0) + 1;
+    saveData(data);
+  }
+  flashIndex++;
+  isFlipped = false;
+  if (flashIndex >= flashCards.length) {
+    showToast('🎉 今日の復習完了！');
+    renderFlash();
+  } else {
+    renderCard();
+  }
+}
+
+// ===== LIST =====
+function filterList(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  let data = loadData();
+  if (currentFilter !== 'all') data = data.filter(v => (v.status || 'new') === currentFilter);
+  const el = document.getElementById('vocab-list');
+  if (data.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>該当する単語がありません</h3></div>`;
+    return;
+  }
+  el.innerHTML = data.map(v => {
+    const status = v.status || 'new';
+    const scoreClass = status === 'known' ? 'score-known' : status === 'learning' ? 'score-learning' : 'score-new';
+    const scoreLabel = status === 'known' ? '✓' : status === 'learning' ? '…' : 'N';
+    const date = new Date(v.created).toLocaleDateString('ja-JP', {month:'short', day:'numeric'});
+    return `
+      <div class="vocab-item">
+        <div class="vocab-score ${scoreClass}">${scoreLabel}</div>
+        <div class="vocab-content">
+          <div class="vocab-word">${v.word}</div>
+          <div class="vocab-ja">${v.ja}</div>
+          ${v.example ? `<div class="vocab-ex">${v.example}</div>` : ''}
+          <div class="vocab-date">${date}${v.session ? ' · ' + v.session : ''}</div>
+        </div>
+        <button class="delete-btn" onclick="deleteVocab('${v.id}')">×</button>
+      </div>`;
+  }).join('');
+}
+
+// ===== ADD =====
+function addVocab() {
+  const word = document.getElementById('inp-word').value.trim();
+  const ja = document.getElementById('inp-ja').value.trim();
+  if (!word || !ja) { showToast('⚠️ 英語と日本語訳は必須です'); return; }
+  const data = loadData();
+  data.unshift({
+    id: Date.now().toString(),
+    word,
+    ja,
+    example: document.getElementById('inp-example').value.trim(),
+    type: document.getElementById('inp-type').value,
+    session: document.getElementById('inp-session').value.trim(),
+    status: 'new',
+    created: new Date().toISOString(),
+    nextReview: null,
+    reviewCount: 0
+  });
+  saveData(data);
+  document.getElementById('inp-word').value = '';
+  document.getElementById('inp-ja').value = '';
+  document.getElementById('inp-example').value = '';
+  document.getElementById('inp-session').value = '';
+  showToast('✅ 保存しました！');
+}
+
+function deleteVocab(id) {
+  if (!confirm('この単語を削除しますか？')) return;
+  const data = loadData().filter(v => v.id !== id);
+  saveData(data);
+  renderList();
+}
+
+// ===== STATS =====
+function renderStats() {
+  const data = loadData();
+  const known = data.filter(v => v.status === 'known').length;
+  const learning = data.filter(v => v.status === 'learning').length;
+  const newW = data.filter(v => !v.status || v.status === 'new').length;
+  const due = getDueCards().length;
+  document.getElementById('stats-detail').innerHTML = `
+    <div>📚 総単語数: <strong style="color:var(--text)">${data.length}</strong></div>
+    <div>🆕 新規: <strong style="color:var(--accent)">${newW}</strong></div>
+    <div>📖 学習中: <strong style="color:var(--warn)">${learning}</strong></div>
+    <div>✅ 習得済み: <strong style="color:var(--accent2)">${known}</strong></div>
+    <div>🔔 今日の復習: <strong style="color:var(--danger)">${due}</strong></div>
+  `;
+}
+
+// ===== NOTIFICATIONS =====
+function toggleNotif() {
+  const btn = document.getElementById('notif-toggle');
+  const label = document.getElementById('notif-label');
+  if (btn.classList.contains('on')) {
+    btn.classList.remove('on');
+    label.textContent = '通知オフ';
+    showToast('通知をオフにしました');
+  } else {
+    if ('Notification' in window) {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') {
+          btn.classList.add('on');
+          label.textContent = '通知オン';
+          showToast('🔔 通知をオンにしました');
+          scheduleReminder();
+        } else {
+          showToast('通知の許可が必要です');
+        }
+      });
+    } else {
+      showToast('このブラウザは通知未対応です');
+    }
+  }
+}
+
+function scheduleReminder() {
+  // Simple reminder using setTimeout for demo (real app would use Service Worker)
+  const now = new Date();
+  const tomorrow9am = new Date(now);
+  tomorrow9am.setDate(tomorrow9am.getDate() + 1);
+  tomorrow9am.setHours(9, 0, 0, 0);
+  const ms = tomorrow9am - now;
+  setTimeout(() => {
+    const due = getDueCards().length;
+    if (due > 0 && Notification.permission === 'granted') {
+      new Notification('EcoTalk 復習リマインダー', {
+        body: `今日の復習: ${due}枚のカードが待っています！`,
+        icon: '🌿'
+      });
+    }
+  }, Math.min(ms, 2147483647));
+}
+
+// ===== UTILS =====
+function updateTotalCount() {
+  document.getElementById('total-count').textContent = loadData().length;
+}
+
+function clearAll() {
+  if (!confirm('すべての単語を削除しますか？この操作は取り消せません。')) return;
+  localStorage.removeItem('ecotalk_vocab');
+  updateTotalCount();
+  showToast('🗑️ すべて削除しました');
+  renderFlash();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== INIT =====
+updateTotalCount();
+renderFlash();
+</script>
+</body>
+</html>
