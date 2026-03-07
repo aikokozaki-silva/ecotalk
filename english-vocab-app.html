@@ -404,7 +404,7 @@
   <div class="logo">Eco<span>Talk</span></div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
     <div class="stats-pill">総単語: <strong id="total-count">0</strong></div>
-    <div id="sync-status" style="font-size:11px;color:var(--muted);"></div>
+    <div id="sync-status" style="font-size:11px;color:var(--accent);"></div>
   </div>
 </header>
 
@@ -534,34 +534,43 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== DATA STORE (Cloud Sync) =====
-const STORAGE_KEY = 'ecotalk-vocab-data';
+// ===== DATA STORE (Google Sheets Sync) =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzI4m4sW-fVJ11FyaTfb2nu1RtV1i2vjO7K9eVlOSYzOP-XlduXt0qmEMiYW1cwI9tP/exec';
 let cachedData = null;
 
 function showSyncStatus(msg, isError) {
   const el = document.getElementById('sync-status');
   if (!el) return;
   el.textContent = msg;
-  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+  el.style.color = isError ? 'var(--danger)' : 'var(--accent)';
 }
 
 async function loadData() {
   if (cachedData !== null) return cachedData;
+  showSyncStatus('☁️ 読み込み中...');
   try {
-    const result = await window.storage.get(STORAGE_KEY);
-    cachedData = result ? JSON.parse(result.value) : [];
+    const res = await fetch(GAS_URL);
+    const json = await res.json();
+    cachedData = json.data || [];
+    showSyncStatus('✓ 同期済み');
+    setTimeout(() => showSyncStatus(''), 2000);
   } catch {
-    cachedData = [];
+    cachedData = JSON.parse(localStorage.getItem('ecotalk_vocab') || '[]');
+    showSyncStatus('⚠️ オフライン', true);
   }
   return cachedData;
 }
 
 async function saveData(data) {
   cachedData = data;
-  await updateTotalCount();
+  localStorage.setItem('ecotalk_vocab', JSON.stringify(data));
+  updateTotalCount();
   showSyncStatus('☁️ 同期中...');
   try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({action: 'save', data}),
+    });
     showSyncStatus('✓ 同期済み');
     setTimeout(() => showSyncStatus(''), 2000);
   } catch {
@@ -732,8 +741,8 @@ async function addVocab() {
 
 async function deleteVocab(id) {
   if (!confirm('この単語を削除しますか？')) return;
-  const data = (await loadData()).filter(v => v.id !== id);
   cachedData = null;
+  const data = (await loadData()).filter(v => v.id !== id);
   await saveData(data);
   await renderList();
 }
@@ -806,10 +815,10 @@ async function updateTotalCount() {
 
 async function clearAll() {
   if (!confirm('すべての単語を削除しますか？この操作は取り消せません。')) return;
-  cachedData = null;
-  await window.storage.delete(STORAGE_KEY);
   cachedData = [];
-  await updateTotalCount();
+  localStorage.removeItem('ecotalk_vocab');
+  await saveData([]);
+  updateTotalCount();
   showToast('🗑️ すべて削除しました');
   await renderFlash();
 }
@@ -878,7 +887,6 @@ async function confirmImport() {
   if (importPreviewData.length === 0) return;
   const data = await loadData();
   importPreviewData.forEach(v => data.unshift(v));
-  cachedData = null;
   await saveData(data);
   document.getElementById('inp-import').value = '';
   document.getElementById('import-preview').innerHTML = '';
@@ -890,7 +898,6 @@ async function confirmImport() {
 
 // ===== INIT =====
 async function init() {
-  showSyncStatus('☁️ 読み込み中...');
   await updateTotalCount();
   await renderFlash();
 }
