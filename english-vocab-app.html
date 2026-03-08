@@ -628,7 +628,7 @@ function renderCard() {
     <div class="progress-text">${flashIndex + 1} / ${flashCards.length} 枚</div>
     <div class="tap-hint" id="tap-hint">タップして訳を表示 / 「次へ」ボタンで次のカードへ</div>
     <div class="flashcard-wrap">
-      <div class="flashcard" id="fc">
+      <div class="flashcard" id="fc" onclick="handleCardTap()">
         <div class="card-face front">
           <div class="card-label">English</div>
           <div class="card-word">${card.word}</div>
@@ -642,13 +642,21 @@ function renderCard() {
       </div>
     </div>
     <div class="card-actions" id="actions" style="display:none">
-      <button class="btn btn-again" onclick="rate('again')">もう一度</button>
-      <button class="btn btn-good" onclick="rate('good')">良い</button>
-      <button class="btn btn-easy" onclick="rate('easy')">簡単</button>
+      <button class="btn btn-again" onclick="event.stopPropagation();rate('again')">もう一度</button>
+      <button class="btn btn-good" onclick="event.stopPropagation();rate('good')">良い</button>
+      <button class="btn btn-easy" onclick="event.stopPropagation();rate('easy')">簡単</button>
     </div>
-    <button id="btn-next" onclick="swipeNext()" style="display:none;margin-top:10px;width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;">次へ →</button>
+    <button id="btn-next" onclick="event.stopPropagation();swipeNext()" style="display:none;margin-top:10px;width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;">次へ →</button>
   `;
   setupSwipe();
+}
+
+let cardLocked = false;
+function handleCardTap() {
+  if (cardLocked) return;
+  cardLocked = true;
+  flipCard();
+  setTimeout(() => { cardLocked = false; }, 500);
 }
 
 function flipCard() {
@@ -662,21 +670,7 @@ function flipCard() {
 }
 
 function setupSwipe() {
-  const fc = document.getElementById('fc');
-  if (!fc) return;
-  let tapping = false;
-  fc.addEventListener('touchend', e => {
-    e.preventDefault(); // clickイベントの二重発火を防ぐ
-    if (tapping) return;
-    tapping = true;
-    flipCard();
-    setTimeout(() => { tapping = false; }, 400);
-  });
-  // PCマウス用
-  fc.addEventListener('click', e => {
-    if (e.pointerType === 'touch') return;
-    flipCard();
-  });
+  // 何もしない - タップはHTMLのonclick属性で処理
 }
 
 async function swipeNext() {
