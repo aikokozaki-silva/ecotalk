@@ -626,9 +626,9 @@ function renderCard() {
   content.innerHTML = `
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     <div class="progress-text">${flashIndex + 1} / ${flashCards.length} 枚</div>
-    <div class="tap-hint">カードをタップして訳を表示</div>
+    <div class="tap-hint" id="tap-hint">👆 上スワイプで次へ　　タップで訳を表示</div>
     <div class="flashcard-wrap">
-      <div class="flashcard" id="fc" onclick="flipCard()">
+      <div class="flashcard" id="fc">
         <div class="card-face front">
           <div class="card-label">English</div>
           <div class="card-word">${card.word}</div>
@@ -646,13 +646,72 @@ function renderCard() {
       <button class="btn btn-good" onclick="rate('good')">良い</button>
       <button class="btn btn-easy" onclick="rate('easy')">簡単</button>
     </div>
+    <button id="btn-next" onclick="swipeNext()" style="display:none;margin-top:10px;width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;">スキップして次へ →</button>
   `;
+  setupSwipe();
 }
 
 function flipCard() {
   isFlipped = !isFlipped;
   document.getElementById('fc').classList.toggle('flipped', isFlipped);
   document.getElementById('actions').style.display = isFlipped ? 'flex' : 'none';
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) btnNext.style.display = isFlipped ? 'block' : 'none';
+  const hint = document.getElementById('tap-hint');
+  if (hint) hint.textContent = isFlipped ? '評価ボタンを押して次へ' : '👆 上スワイプまたはタップで訳を表示';
+}
+
+function setupSwipe() {
+  const fc = document.getElementById('fc');
+  if (!fc) return;
+  let startY = 0, startX = 0, isDragging = false;
+
+  fc.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    isDragging = false;
+  }, { passive: true });
+
+  fc.addEventListener('touchmove', e => {
+    const dy = e.touches[0].clientY - startY;
+    const dx = e.touches[0].clientX - startX;
+    if (Math.abs(dy) > 10) isDragging = true;
+    if (isDragging && Math.abs(dy) > Math.abs(dx)) {
+      fc.style.transform = isFlipped
+        ? `rotateY(180deg) translateY(${dy * 0.3}px)`
+        : `translateY(${dy * 0.3}px)`;
+    }
+  }, { passive: true });
+
+  fc.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    const dx = e.changedTouches[0].clientX - startX;
+    fc.style.transform = isFlipped ? 'rotateY(180deg)' : '';
+
+    if (!isDragging && Math.abs(dy) < 10 && Math.abs(dx) < 10) {
+      flipCard();
+      return;
+    }
+    if (dy < -50) swipeNext();
+  });
+}
+
+async function swipeNext() {
+  const fc = document.getElementById('fc');
+  if (fc) {
+    fc.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+    fc.style.transform = 'translateY(-120%) rotate(-5deg)';
+    fc.style.opacity = '0';
+  }
+  await new Promise(r => setTimeout(r, 220));
+  flashIndex++;
+  isFlipped = false;
+  if (flashIndex >= flashCards.length) {
+    showToast('🎉 今日の復習完了！');
+    await renderFlash();
+  } else {
+    renderCard();
+  }
 }
 
 async function rate(rating) {
