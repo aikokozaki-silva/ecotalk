@@ -687,12 +687,17 @@ function setupSwipe() {
     const dy = e.changedTouches[0].clientY - startY;
     const dx = e.changedTouches[0].clientX - startX;
     fc.style.transform = isFlipped ? 'rotateY(180deg)' : '';
+    fc.style.transition = '';
 
-    if (!isDragging && Math.abs(dy) < 10 && Math.abs(dx) < 10) {
+    // タップ判定：移動距離が小さい場合のみ
+    if (Math.abs(dy) < 8 && Math.abs(dx) < 8) {
       flipCard();
       return;
     }
-    if (dy < -50) swipeNext();
+    // スワイプ判定：80px以上の上方向スワイプのみ
+    if (isDragging && dy < -80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      swipeNext();
+    }
   });
 }
 
