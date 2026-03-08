@@ -664,8 +664,17 @@ function flipCard() {
 function setupSwipe() {
   const fc = document.getElementById('fc');
   if (!fc) return;
-  // タップのみ対応（スワイプ無効）
-  fc.addEventListener('click', () => {
+  let tapping = false;
+  fc.addEventListener('touchend', e => {
+    e.preventDefault(); // clickイベントの二重発火を防ぐ
+    if (tapping) return;
+    tapping = true;
+    flipCard();
+    setTimeout(() => { tapping = false; }, 400);
+  });
+  // PCマウス用
+  fc.addEventListener('click', e => {
+    if (e.pointerType === 'touch') return;
     flipCard();
   });
 }
